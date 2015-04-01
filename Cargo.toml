@@ -1,0 +1,8 @@
+[package]
+name = "merit"
+version = "0.0.1"
+authors = ["Sean McArthur <sean.monstar@gmail.com>"]
+
+[dependencies]
+hyper = "*"
+rustc-serialize = "*"
