@@ -4,5 +4,8 @@ version = "0.0.1"
 authors = ["Sean McArthur <sean.monstar@gmail.com>"]
 
 [dependencies]
-hyper = "*"
 rustc-serialize = "*"
+
+[dependencies.hyper]
+git = "https://github.com/hyperium/hyper"
+features = ["nightly"]

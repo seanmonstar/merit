@@ -1,7 +1,6 @@
 extern crate hyper;
 extern crate rustc_serialize;
 
-use std::error::FromError;
 use std::io::{self, Read};
 use std::str;
 
@@ -41,15 +40,15 @@ enum LookupError {
     Io(io::Error)
 }
 
-impl FromError<hyper::HttpError> for LookupError {
-    fn from_error(e: hyper::HttpError) -> LookupError {
+impl From<hyper::HttpError> for LookupError {
+    fn from(e: hyper::HttpError) -> LookupError {
         LookupError::Http(e)
     }
 }
 
 
-impl FromError<io::Error> for LookupError {
-    fn from_error(e: io::Error) -> LookupError {
+impl From<io::Error> for LookupError {
+    fn from(e: io::Error) -> LookupError {
         LookupError::Io(e)
     }
 }
