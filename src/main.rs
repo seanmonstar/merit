@@ -1,14 +1,26 @@
 extern crate hyper;
 extern crate rustc_serialize;
 
+use std::env;
 use std::io::{self, Read};
 use std::str;
 
 use rustc_serialize::json;
 
+static DEFAULT_PORT: u16 = 8080;
+
+/// Look up our server port number in PORT, for compatibility with Heroku.
+fn get_server_port() -> u16 {
+    match env::var("PORT") {
+        Ok(val) => u16::from_str_radix(&val, 10).unwrap_or(DEFAULT_PORT),
+        Err(_) => DEFAULT_PORT
+    }
+}
+
 fn main() {
-    let _l = hyper::Server::new(handle).listen("127.0.0.1:3010");
-    println!("Listening on http://127.0.0.1:3010");
+    let port = get_server_port();
+    let _l = hyper::Server::new(handle).listen(("127.0.0.1", port));
+    println!("Listening on http://127.0.0.1:{}", port);
 }
 
 fn handle(req: hyper::server::Request, mut res: hyper::server::Response<hyper::net::Fresh>) {
