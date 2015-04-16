@@ -45,7 +45,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "hyper"
 version = "0.3.11"
-source = "git+https://github.com/hyperium/hyper#1ba04f9573c45da3ccd1f3b9754ad294bd34180d"
+source = "git+https://github.com/hyperium/hyper#4f09b002ffb2d076fc8fb01d9b9e0464216b2b41"
 dependencies = [
  "cookie 0.1.18 (registry+https://github.com/rust-lang/crates.io-index)",
  "httparse 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
