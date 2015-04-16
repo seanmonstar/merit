@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Merit Badge - Crates.io Badges</title>
+        <style>
+            body { max-width: 800px; }
+            #crate { height: 20px; margin:5px; float: left; }
+            #badge { margin:5px; }
+            #md { background-color: #ffb; border: 1px solid #000; height: 30px; padding: 5px; }
+        </style>
+    </head>
+    <body>
+        <p>Show your published crate version from crates.io!</p>
+        <div>
+            <input type="text" id="crate" /><img id="badge" src="/" />
+        </div>
+        <p>Markdown:</p>
+        <p><textarea readonly id="md"></pre></p>
+        <script>
+        crate.onchange = function() {
+            badge.src = '/' + crate.value;
+            var badgeUrl = window.location.href + crate.value;
+            var crateUrl = 'https://crates.io/crates/' + crate.value;
+            md.innerHTML = '[![](' + badgeUrl + ')](' + crateUrl + ')';
+        };
+        md.onclick = function() {
+            md.select();
+        };
+        </script>
+    </body>
+</html>

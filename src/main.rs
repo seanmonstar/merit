@@ -3,7 +3,7 @@ extern crate rustc_serialize;
 extern crate env_logger;
 
 use std::env;
-use std::io::{self, Read};
+use std::io::{self, Read, Write};
 use std::str;
 
 use rustc_serialize::json;
@@ -25,8 +25,18 @@ fn get_port() -> u16 {
         Err(_) => DEFAULT_PORT
     }
 }
+
+static INDEX_PAGE: &'static [u8] = include_bytes!("../assets/index.html");
+
 fn handle(req: hyper::server::Request, mut res: hyper::server::Response<hyper::net::Fresh>) {
     match (req.method, req.uri) {
+        (hyper::Get, hyper::uri::RequestUri::AbsolutePath(ref path)) if path == "/" => {
+            res.headers_mut().set(hyper::header::ContentLength(INDEX_PAGE.len() as u64));
+            let _ = res.start().and_then(|mut res| {
+                let _ = res.write_all(INDEX_PAGE);
+                res.end()
+            });
+        }
         (hyper::Get, hyper::uri::RequestUri::AbsolutePath(path)) => {
             let version = match lookup(&path[1..]) {
                 Ok(v) => v,
