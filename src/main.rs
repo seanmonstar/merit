@@ -10,13 +10,14 @@ use rustc_serialize::json;
 
 fn main() {
     env_logger::init().unwrap();
-    let listening = hyper::Server::new(handle).listen(("127.0.0.1", get_server_port()));
+    let listening = hyper::Server::new(handle)
+        .listen(("127.0.0.1", get_port())).unwrap();
     println!("Listening on http://{}", listening.socket);
 }
 
 const DEFAULT_PORT: u16 = 8080;
 
-fn get_server_port() -> u16 {
+fn get_port() -> u16 {
     match env::var("PORT") {
         Ok(val) => u16::from_str_radix(&val, 10).unwrap_or(DEFAULT_PORT),
         Err(_) => DEFAULT_PORT
