@@ -6,7 +6,7 @@
             body { max-width: 800px; }
             #crate { height: 20px; margin:5px; float: left; }
             #badge { margin:5px; }
-            #md { background-color: #ffb; border: 1px solid #000; height: 30px; padding: 5px; }
+            #md { background-color: #ffb; border: 1px solid #000; height: 30px; padding: 5px; width: 95%; }
         </style>
     </head>
     <body>
@@ -17,16 +17,18 @@
         <p>Markdown:</p>
         <p><textarea readonly id="md"></textarea></p>
         <script type="text/javascript">
-        crate.onchange = function() {
+        var update = function() {
             badge.src = '/' + crate.value;
             var badgeUrl = window.location.href + crate.value;
             var crateUrl = 'https://crates.io/crates/' + crate.value;
-            md.innerHTML = '[![](' + badgeUrl + ')](' + crateUrl + ')';
+            md.value = '[![](' + badgeUrl + ')](' + crateUrl + ')';
         };
+        crate.onchange = update;
         md.onclick = function() {
             md.select();
         };
         crate.value = 'hyper';
+        update();
         </script>
     </body>
 </html>
