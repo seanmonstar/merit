@@ -45,6 +45,12 @@ fn handle(req: hyper::server::Request, mut res: hyper::server::Response<hyper::n
             let badge = format!("https://img.shields.io/badge/crates.io-{}-green.svg", version);
             *res.status_mut() = hyper::status::StatusCode::Found;
             res.headers_mut().set(hyper::header::Location(badge));
+            res.headers_mut().set(hyper::header::CacheControl(vec![
+                hyper::header::CacheDirective::NoCache,
+                hyper::header::CacheDirective::NoStore,
+                hyper::header::CacheDirective::MaxAge(0),
+                hyper::header::CacheDirective::MustRevalidate,
+            ]));
             let _ = res.start().and_then(|res| res.end());
         },
         _ => not_found(res)
