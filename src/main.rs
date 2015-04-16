@@ -9,10 +9,9 @@ use std::str;
 use rustc_serialize::json;
 
 fn main() {
-    env_logger::init();
-    let port = get_server_port();
-    let _l = hyper::Server::new(handle).listen(("127.0.0.1", port));
-    println!("Listening on http://127.0.0.1:{}", port);
+    env_logger::init().unwrap();
+    let listening = hyper::Server::new(handle).listen(("127.0.0.1", get_server_port()));
+    println!("Listening on http://{}", listening.socket);
 }
 
 const DEFAULT_PORT: u16 = 8080;
