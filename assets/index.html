@@ -15,8 +15,8 @@
             <input type="text" id="crate" /><img id="badge" src="/" />
         </div>
         <p>Markdown:</p>
-        <p><textarea readonly id="md"></pre></p>
-        <script>
+        <p><textarea readonly id="md"></textarea></p>
+        <script type="javascript">
         crate.onchange = function() {
             badge.src = '/' + crate.value;
             var badgeUrl = window.location.href + crate.value;
@@ -26,6 +26,7 @@
         md.onclick = function() {
             md.select();
         };
+        crate.value = 'hyper';
         </script>
     </body>
 </html>
