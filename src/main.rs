@@ -13,7 +13,7 @@ fn main() {
     let port = get_port();
     println!("Binding to PORT {}", port);
     let listening = hyper::Server::new(handle)
-        .listen(("127.0.0.1", port)).unwrap();
+        .listen(("0.0.0.0", port)).unwrap();
     println!("Listening on http://{}", listening.socket);
 }
 
