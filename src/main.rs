@@ -10,8 +10,10 @@ use rustc_serialize::json;
 
 fn main() {
     env_logger::init().unwrap();
+    let port = get_port();
+    println!("Binding to PORT {}", port);
     let listening = hyper::Server::new(handle)
-        .listen(("127.0.0.1", get_port())).unwrap();
+        .listen(("127.0.0.1", port)).unwrap();
     println!("Listening on http://{}", listening.socket);
 }
 
