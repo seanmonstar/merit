@@ -3,7 +3,7 @@ name = "merit"
 version = "0.0.1"
 dependencies = [
  "env_logger 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "hyper 0.3.11 (git+https://github.com/hyperium/hyper)",
+ "hyper 0.3.12 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.12 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -44,8 +44,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "hyper"
-version = "0.3.11"
-source = "git+https://github.com/hyperium/hyper#4f09b002ffb2d076fc8fb01d9b9e0464216b2b41"
+version = "0.3.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "cookie 0.1.18 (registry+https://github.com/rust-lang/crates.io-index)",
  "httparse 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
