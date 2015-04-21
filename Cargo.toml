@@ -4,9 +4,8 @@ version = "0.0.1"
 authors = ["Sean McArthur <sean.monstar@gmail.com>"]
 
 [dependencies]
+hyper = "0.3"
+time = "*"
 env_logger = "*"
 rustc-serialize = "*"
 
-[dependencies.hyper]
-version = "0.3"
-features = ["nightly"]
