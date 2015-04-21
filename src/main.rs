@@ -37,6 +37,7 @@ fn handle(req: hyper::server::Request, mut res: hyper::server::Response<hyper::n
                 res.end()
             });
         }
+        (hyper::Head, hyper::uri::RequestUri::AbsolutePath(path)) |
         (hyper::Get, hyper::uri::RequestUri::AbsolutePath(path)) => {
             let version = match lookup(&path[1..]) {
                 Ok(v) => v,
@@ -53,7 +54,10 @@ fn handle(req: hyper::server::Request, mut res: hyper::server::Response<hyper::n
             ]));
             let _ = res.start().and_then(|res| res.end());
         },
-        _ => not_found(res)
+        _ => {
+            *res.status_mut() = hyper::status::StatusCode::MethodNotAllowed;
+            let _ = res.start().and_then(|res| res.end());
+        }
     };
 }
 
