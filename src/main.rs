@@ -59,7 +59,16 @@ fn handle(req: hyper::server::Request, mut res: hyper::server::Response<hyper::n
                 Ok(v) => v,
                 Err(..) => return not_found(res)
             };
-            let badge = format!("https://img.shields.io/badge/crates.io-{}-green.svg", version);
+            let color = if v[0] == b'0' {
+                "orange"
+            } else {
+                "brightgreen"
+            };
+            let badge = format!(
+                "https://img.shields.io/badge/crates.io-v{}-{}.svg",
+                version,
+                color
+            );
             *res.status_mut() = hyper::status::StatusCode::Found;
             res.headers_mut().set(hyper::header::Location(badge));
             res.headers_mut().set(hyper::header::Expires(
