@@ -59,7 +59,7 @@ fn handle(req: hyper::server::Request, mut res: hyper::server::Response<hyper::n
                 Ok(v) => v,
                 Err(..) => return not_found(res)
             };
-            let color = if v[0] == b'0' {
+            let color = if version.as_bytes()[0] == b'0' {
                 "orange"
             } else {
                 "brightgreen"
