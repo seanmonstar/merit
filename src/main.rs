@@ -64,11 +64,19 @@ fn handle(req: hyper::server::Request, mut res: hyper::server::Response<hyper::n
             } else {
                 "brightgreen"
             };
+
+            let style = if path.find("?style=flat-square").is_some() {
+                "?style=flat-square"
+            } else {
+                ""
+            };
             let badge = format!(
-                "https://img.shields.io/badge/crates.io-v{}-{}.svg",
+                "https://img.shields.io/badge/crates.io-v{}-{}.svg{}",
                 version,
-                color
+                color,
+                style
             );
+
             *res.status_mut() = hyper::status::StatusCode::Found;
             res.headers_mut().set(hyper::header::Location(badge));
             res.headers_mut().set(hyper::header::Expires(
