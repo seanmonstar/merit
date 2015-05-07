@@ -59,7 +59,10 @@ fn handle(req: hyper::server::Request, mut res: hyper::server::Response<hyper::n
                 Ok(v) => v,
                 Err(..) => return not_found(res)
             };
-            let badge = format!("https://img.shields.io/badge/crates.io-{}-green.svg", version);
+            let badge = match path.find("?style=flat-square") {
+                Some(_) => format!("https://img.shields.io/badge/crates.io-{}-green.svg?style=flat-square", version),
+                None    => format!("https://img.shields.io/badge/crates.io-{}-green.svg", version)
+            };
             *res.status_mut() = hyper::status::StatusCode::Found;
             res.headers_mut().set(hyper::header::Location(badge));
             res.headers_mut().set(hyper::header::Expires(
