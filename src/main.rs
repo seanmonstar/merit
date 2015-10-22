@@ -4,7 +4,7 @@ extern crate env_logger;
 extern crate time;
 
 use std::env;
-use std::io::{self, Read, Write};
+use std::io::{self, Read};
 use std::str;
 
 use rustc_serialize::json;
@@ -14,9 +14,9 @@ fn main() {
     env_logger::init().unwrap();
     let port = get_port();
     println!("Binding to PORT {}", port);
-    let listening = hyper::Server::new(handle)
-        .listen(("0.0.0.0", port)).unwrap();
-    println!("Listening on http://{}", listening.socket);
+    let _listening = hyper::Server::http(("0.0.0.0", port)).unwrap()
+        .handle(handle).unwrap();
+    //println!("Listening on http://{}", listening.addr);
 }
 
 const DEFAULT_PORT: u16 = 8080;
@@ -47,53 +47,57 @@ const JAN_1990: Tm = Tm {
 fn handle(req: hyper::server::Request, mut res: hyper::server::Response<hyper::net::Fresh>) {
     match (req.method, req.uri) {
         (hyper::Get, hyper::uri::RequestUri::AbsolutePath(ref path)) if path == "/" => {
-            res.headers_mut().set(hyper::header::ContentLength(INDEX_PAGE.len() as u64));
-            let _ = res.start().and_then(|mut res| {
-                let _ = res.write_all(INDEX_PAGE);
-                res.end()
-            });
+            let _ = res.send(INDEX_PAGE);
         }
         (hyper::Head, hyper::uri::RequestUri::AbsolutePath(path)) |
         (hyper::Get, hyper::uri::RequestUri::AbsolutePath(path)) => {
-            let version = match lookup(&path[1..]) {
+            let (crate_name, as_json) = if path.ends_with(".json") {
+                (&path[1..(path.len() - 5)], true)
+            } else {
+                (&path[1..], false)
+            };
+            let version = match lookup(crate_name) {
                 Ok(v) => v,
                 Err(..) => return not_found(res)
             };
-            let color = if version.as_bytes()[0] == b'0' {
-                "orange"
+            if as_json {
+                let msg = format!(r#"{{"version":"{}"}}"#, version);
+                let _ = res.send(msg.as_ref());
             } else {
-                "brightgreen"
-            };
+                let color = if version.as_bytes()[0] == b'0' {
+                    "orange"
+                } else {
+                    "brightgreen"
+                };
 
-            let style = if path.find("?style=flat-square").is_some() {
-                "?style=flat-square"
-            } else {
-                ""
-            };
-            let badge = format!(
-                "https://img.shields.io/badge/crates.io-v{}-{}.svg{}",
-                version,
-                color,
-                style
-            );
+                let style = if path.find("?style=flat-square").is_some() {
+                    "?style=flat-square"
+                } else {
+                    ""
+                };
+                let badge = format!(
+                    "https://img.shields.io/badge/crates.io-v{}-{}.svg{}",
+                    version,
+                    color,
+                    style
+                );
 
-            *res.status_mut() = hyper::status::StatusCode::Found;
-            res.headers_mut().set(hyper::header::Location(badge));
-            res.headers_mut().set(hyper::header::Expires(
-                hyper::header::HttpDate(JAN_1990)
-            ));
-            res.headers_mut().set(hyper::header::Pragma::NoCache);
-            res.headers_mut().set(hyper::header::CacheControl(vec![
-                hyper::header::CacheDirective::NoCache,
-                hyper::header::CacheDirective::NoStore,
-                hyper::header::CacheDirective::MaxAge(0),
-                hyper::header::CacheDirective::MustRevalidate,
-            ]));
-            let _ = res.start().and_then(|res| res.end());
+                *res.status_mut() = hyper::status::StatusCode::Found;
+                res.headers_mut().set(hyper::header::Location(badge));
+                res.headers_mut().set(hyper::header::Expires(
+                    hyper::header::HttpDate(JAN_1990)
+                ));
+                res.headers_mut().set(hyper::header::Pragma::NoCache);
+                res.headers_mut().set(hyper::header::CacheControl(vec![
+                    hyper::header::CacheDirective::NoCache,
+                    hyper::header::CacheDirective::NoStore,
+                    hyper::header::CacheDirective::MaxAge(0),
+                    hyper::header::CacheDirective::MustRevalidate,
+                ]));
+            }
         },
         _ => {
             *res.status_mut() = hyper::status::StatusCode::MethodNotAllowed;
-            let _ = res.start().and_then(|res| res.end());
         }
     };
 }
@@ -107,12 +111,12 @@ type LookupResult = Result<String, LookupError>;
 
 enum LookupError {
     NotFound,
-    Http(hyper::HttpError),
+    Http(hyper::Error),
     Io(io::Error)
 }
 
-impl From<hyper::HttpError> for LookupError {
-    fn from(e: hyper::HttpError) -> LookupError {
+impl From<hyper::Error> for LookupError {
+    fn from(e: hyper::Error) -> LookupError {
         LookupError::Http(e)
     }
 }
@@ -143,7 +147,7 @@ impl rustc_serialize::Decodable for LookupCrate {
     }
 }
 fn lookup(krate: &str) -> LookupResult {
-    let mut client = hyper::Client::new();
+    let client = hyper::Client::new();
     let url = format!("https://crates.io/api/v1/crates/{}", krate);
     let mut res = try!(client.get(&*url).send());
     if res.status != hyper::Ok {
