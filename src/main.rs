@@ -4,6 +4,7 @@ extern crate env_logger;
 extern crate time;
 
 use std::env;
+use std::fmt;
 use std::io::{self, Read};
 use std::str;
 
@@ -77,7 +78,7 @@ fn handle(req: hyper::server::Request, mut res: hyper::server::Response<hyper::n
                 };
                 let badge = format!(
                     "https://img.shields.io/badge/crates.io-v{}-{}.svg{}",
-                    version,
+                    ShieldEscape(&version),
                     color,
                     style
                 );
@@ -146,6 +147,7 @@ impl rustc_serialize::Decodable for LookupCrate {
         })
     }
 }
+
 fn lookup(krate: &str) -> LookupResult {
     let client = hyper::Client::new();
     let url = format!("https://crates.io/api/v1/crates/{}", krate);
@@ -168,4 +170,20 @@ fn lookup(krate: &str) -> LookupResult {
     };
 
     Ok(map.version)
+}
+
+struct ShieldEscape<'a>(&'a str);
+
+impl<'a> fmt::Display for ShieldEscape<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use std::fmt::Write;
+        for &byte in self.0.as_bytes() {
+            if byte == b'-' {
+                try!(f.write_str("--"));
+            } else {
+                try!(f.write_char(byte as char));
+            }
+        }
+        Ok(())
+    }
 }
