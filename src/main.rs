@@ -1,23 +1,27 @@
-extern crate hyper;
-extern crate rustc_serialize;
-extern crate env_logger;
-extern crate time;
+#[macro_use]
+extern crate serde_derive;
 
-use std::env;
-use std::fmt;
-use std::io::{self, Read};
-use std::str;
+use std::{env, fmt};
 
-use rustc_serialize::json;
-use time::Tm;
+use futures::{future::{self, Either}, Future};
+use reqwest::r#async::Client;
+use warp::{http::{header, Response, StatusCode}, Filter, Reply};
+
+#[cfg(test)] mod tests;
 
 fn main() {
-    env_logger::init().unwrap();
+    pretty_env_logger::init();
+
     let port = get_port();
     println!("Binding to PORT {}", port);
-    let _listening = hyper::Server::http(("0.0.0.0", port)).unwrap()
-        .handle(handle).unwrap();
-    //println!("Listening on http://{}", listening.addr);
+
+    let routes = index()
+        .or(badge());
+
+    let log = warp::log("merit");
+
+    warp::serve(routes.with(log))
+        .run(([0, 0, 0, 0], port));
 }
 
 const DEFAULT_PORT: u16 = 8080;
@@ -31,145 +35,105 @@ fn get_port() -> u16 {
 
 static INDEX_PAGE: &'static [u8] = include_bytes!("../assets/index.html");
 
-const JAN_1990: Tm = Tm {
-    tm_sec: 0,
-    tm_min: 0,
-    tm_hour: 0,
-    tm_mday: 1,
-    tm_mon: 0,
-    tm_year: 90,
-    tm_wday: 0,
-    tm_yday: 0,
-    tm_isdst: 0,
-    tm_utcoff: 0,
-    tm_nsec: 0,
-};
-
-fn handle(req: hyper::server::Request, mut res: hyper::server::Response<hyper::net::Fresh>) {
-    match (req.method, req.uri) {
-        (hyper::Get, hyper::uri::RequestUri::AbsolutePath(ref path)) if path == "/" => {
-            let _ = res.send(INDEX_PAGE);
-        }
-        (hyper::Head, hyper::uri::RequestUri::AbsolutePath(path)) |
-        (hyper::Get, hyper::uri::RequestUri::AbsolutePath(path)) => {
-            let (crate_name, as_json) = if path.ends_with(".json") {
-                (&path[1..(path.len() - 5)], true)
-            } else {
-                (&path[1..], false)
-            };
-            let version = match lookup(crate_name) {
-                Ok(v) => v,
-                Err(..) => return not_found(res)
-            };
-            if as_json {
-                let msg = format!(r#"{{"version":"{}"}}"#, version);
-                let _ = res.send(msg.as_ref());
-            } else {
-                let color = if version.as_bytes()[0] == b'0' {
-                    "orange"
-                } else {
-                    "brightgreen"
-                };
-
-                let style = if path.find("?style=flat-square").is_some() {
-                    "?style=flat-square"
-                } else {
-                    ""
-                };
-                let badge = format!(
-                    "https://img.shields.io/badge/crates.io-v{}-{}.svg{}",
-                    ShieldEscape(&version),
-                    color,
-                    style
-                );
-
-                *res.status_mut() = hyper::status::StatusCode::Found;
-                res.headers_mut().set(hyper::header::Location(badge));
-                res.headers_mut().set(hyper::header::Expires(
-                    hyper::header::HttpDate(JAN_1990)
-                ));
-                res.headers_mut().set(hyper::header::Pragma::NoCache);
-                res.headers_mut().set(hyper::header::CacheControl(vec![
-                    hyper::header::CacheDirective::NoCache,
-                    hyper::header::CacheDirective::NoStore,
-                    hyper::header::CacheDirective::MaxAge(0),
-                    hyper::header::CacheDirective::MustRevalidate,
-                ]));
-            }
-        },
-        _ => {
-            *res.status_mut() = hyper::status::StatusCode::MethodNotAllowed;
-        }
-    };
-}
-
-fn not_found(mut res: hyper::server::Response<hyper::net::Fresh>) {
-    *res.status_mut() = hyper::NotFound;
-    let _ = res.start().and_then(|res| res.end());
-}
-
-type LookupResult = Result<String, LookupError>;
-
-enum LookupError {
-    NotFound,
-    Http(hyper::Error),
-    Io(io::Error)
-}
-
-impl From<hyper::Error> for LookupError {
-    fn from(e: hyper::Error) -> LookupError {
-        LookupError::Http(e)
-    }
-}
-
-
-impl From<io::Error> for LookupError {
-    fn from(e: io::Error) -> LookupError {
-        LookupError::Io(e)
-    }
-}
-
-#[derive(Debug)]
-struct LookupCrate {
-    version: String
-}
-
-impl rustc_serialize::Decodable for LookupCrate {
-    fn decode<D: rustc_serialize::Decoder>(d: &mut D) -> Result<LookupCrate, D::Error> {
-        Ok(LookupCrate {
-            version: try!(d.read_struct("", 1, |d| {
-                d.read_struct_field("crate", 1, |d| {
-                    d.read_struct("", 1, |d| {
-                        d.read_struct_field("max_version", 0, |d| d.read_str())
-                    })
-                })
-            }))
+fn index() -> impl Filter<Extract = impl Reply, Error = warp::Rejection> + Clone {
+    warp::get2()
+        .and(warp::path::end())
+        .map(|| {
+            Response::builder()
+                .header(header::CONTENT_TYPE, "text/html; charset=utf-8")
+                .body(INDEX_PAGE)
         })
-    }
 }
 
-fn lookup(krate: &str) -> LookupResult {
-    let client = hyper::Client::new();
-    let url = format!("https://crates.io/api/v1/crates/{}", krate);
-    let mut res = try!(client.get(&*url).send());
-    if res.status != hyper::Ok {
-        return Err(LookupError::NotFound);
-    }
+fn badge() -> impl Filter<Extract = impl Reply, Error = warp::Rejection> + Clone {
+    warp::get2()
+        .and(style())
+        .and(lookup())
+        .map(|style: Option<Style>, lookup: Lookup| {
+            let version = lookup.krate.max_version;
 
-    let mut buf = Vec::new();
-    try!(res.read_to_end(&mut buf));
+            let color = if version.starts_with("0") {
+                "orange"
+            } else {
+                "brightgreen"
+            };
 
-    let text = match str::from_utf8(&buf) {
-        Ok(text) => text,
-        _ => return Err(LookupError::NotFound)
-    };
+            let style = match style {
+                Some(Style::FlatSquare) => "?style=flat-square",
+                None => "",
+            };
 
-    let map: LookupCrate = match json::decode(text) {
-        Ok(map) => map,
-        _ => return Err(LookupError::NotFound)
-    };
+            let badge = format!(
+                "https://img.shields.io/badge/crates.io-v{}-{}.svg{}",
+                ShieldEscape(&version),
+                color,
+                style
+            );
+            Response::builder()
+                .status(StatusCode::FOUND)
+                .header(header::LOCATION, badge)
+                .header(header::EXPIRES, "Sun, 01 Jan 1990 00:00:00 GMT")
+                .header(header::PRAGMA, "no-cache")
+                .header(header::CACHE_CONTROL, "no-cache, no-store, max-age=0, must-revalidate")
+                .body("")
+        })
+}
 
-    Ok(map.version)
+fn lookup() -> impl Filter<Extract = (Lookup,), Error = warp::Rejection> + Clone {
+    let client = Client::new();
+    warp::path::param()
+        .and(warp::path::end())
+        .and_then(move |crate_name: String| {
+            let url = format!("https://crates.io/api/v1/crates/{}", crate_name);
+            client
+                .get(&url)
+                .header(header::USER_AGENT, "meritbadge/0.1")
+                .send()
+                .map_err(warp::reject::custom)
+                .and_then(|mut api_res| {
+                    match api_res.status() {
+                        StatusCode::OK => {
+                            let fut = api_res
+                                .json()
+                                .map_err(warp::reject::custom);
+                            Either::A(fut)
+                        },
+                        StatusCode::NOT_FOUND => {
+                            Either::B(future::err(warp::reject::not_found()))
+                        },
+                        _other => {
+                            Either::B(future::err(warp::reject::not_found()))
+                        }
+                    }
+                })
+        })
+}
+
+fn style() -> impl Filter<Extract = (Option<Style>,), Error = warp::Rejection> + Clone {
+    warp::query()
+        .map(|q: Query| q.style)
+}
+
+#[derive(Deserialize)]
+struct Lookup {
+    #[serde(rename = "crate")]
+    krate: Krate
+}
+
+#[derive(Deserialize)]
+struct Krate {
+    max_version: String
+}
+
+#[derive(Deserialize)]
+struct Query {
+    style: Option<Style>,
+}
+
+#[derive(Debug, Deserialize, PartialEq)]
+enum Style {
+    #[serde(rename = "flat-square")]
+    FlatSquare,
 }
 
 struct ShieldEscape<'a>(&'a str);
@@ -179,9 +143,9 @@ impl<'a> fmt::Display for ShieldEscape<'a> {
         use std::fmt::Write;
         for &byte in self.0.as_bytes() {
             if byte == b'-' {
-                try!(f.write_str("--"));
+                f.write_str("--")?;
             } else {
-                try!(f.write_char(byte as char));
+                f.write_char(byte as char)?;
             }
         }
         Ok(())

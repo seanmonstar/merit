@@ -1,11 +1,14 @@
 [package]
 name = "merit"
-version = "0.0.1"
+version = "0.1.0"
 authors = ["Sean McArthur <sean.monstar@gmail.com>"]
+edition = "2018"
 
 [dependencies]
-hyper = "0.7"
-time = "*"
-env_logger = "*"
-rustc-serialize = "*"
+futures = "0.1.24"
+pretty_env_logger = "0.2"
+reqwest = "0.9"
+serde = "1"
+serde_derive = "1"
+warp = "0.1"
 

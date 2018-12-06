@@ -1,1 +1,1 @@
-web: RUST_LOG=debug target/release/merit
+web: RUST_LOG=merit=info,warn target/release/merit
