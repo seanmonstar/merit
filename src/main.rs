@@ -87,7 +87,7 @@ fn lookup() -> impl Filter<Extract = (Lookup,), Error = warp::Rejection> + Clone
             let url = format!("https://crates.io/api/v1/crates/{}", crate_name);
             client
                 .get(&url)
-                .header(header::USER_AGENT, "meritbadge/0.1")
+                .header(header::USER_AGENT, "meritbadge.herokuapp.com/0.1")
                 .send()
                 .map_err(warp::reject::custom)
                 .and_then(|mut api_res| {
